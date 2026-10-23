@@ -26,6 +26,8 @@ jobs:
 
       - name: Run safety smoke tests
         shell: pwsh
+        env:
+          SYSTEM_OPTIMIZER_ALLOW_ADMIN: '1'
         run: |
           pwsh -File tests/smoke.ps1
 
