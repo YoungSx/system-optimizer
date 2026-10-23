@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+      - main
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  pull_request:
+    branches:
+      - master
+      - main
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+
+jobs:
+  test-and-package:
+    name: Smoke Tests & Package Validation
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run safety smoke tests
+        shell: pwsh
+        run: |
+          pwsh -File tests/smoke.ps1
+
+      - name: Build WorkBuddy distribution package
+        id: build_package
+        shell: pwsh
+        run: |
+          $result = pwsh -File tools/package-workbuddy.ps1 -OutputDirectory build | ConvertFrom-Json
+          Write-Host "Built zip: $($result.Zip)"
+          Write-Host "SHA256:   $($result.Sha256)"
+          Write-Host "Files:    $($result.FileCount)"
+          Write-Host "Version:  $($result.Version)"
+
+      - name: Verify package integrity and archive structure
+        shell: pwsh
+        run: |
+          $zips = Get-ChildItem -Path build -Filter '*.zip'
+          if ($zips.Count -ne 1) {
+            throw "Expected exactly 1 zip file in build/, found $($zips.Count)"
+          }
+          $zip = $zips[0]
+
+          # Verify SHA256 file
+          $shaFile = "$($zip.FullName).sha256"
+          if (-not (Test-Path -LiteralPath $shaFile)) {
+            throw "Expected checksum file $shaFile does not exist."
+          }
+          $expectedHash = (Get-FileHash -LiteralPath $zip.FullName -Algorithm SHA256).Hash
+          $recordedHash = (Get-Content -LiteralPath $shaFile).Trim().Split(' ')[0]
+          if ($expectedHash -ne $recordedHash) {
+            throw "Checksum mismatch! Expected $expectedHash, got $recordedHash"
+          }
+
+          # Verify archive content has root folder system-optimizer
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $archive = [System.IO.Compression.ZipFile]::OpenRead($zip.FullName)
+          $badEntries = $archive.Entries | Where-Object { -not $_.FullName.StartsWith('system-optimizer/') }
+          if ($badEntries.Count -gt 0) {
+            $archive.Dispose()
+            throw "Found archive entries not under 'system-optimizer/' root folder!"
+          }
+          $hasSkill = $archive.Entries | Where-Object { $_.FullName -eq 'system-optimizer/SKILL.md' }
+          $archive.Dispose()
+          if (-not $hasSkill) {
+            throw "Archive is missing 'system-optimizer/SKILL.md'!"
+          }
+          Write-Host "Package integrity verification passed."
