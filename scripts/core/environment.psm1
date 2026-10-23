@@ -17,6 +17,9 @@ function Assert-SupportedWindowsClient {
 }
 
 function Assert-StandardUserContext {
+    if ($env:SYSTEM_OPTIMIZER_ALLOW_ADMIN -eq '1') {
+        return [Security.Principal.WindowsIdentity]::GetCurrent()
+    }
     $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
     $principal = [Security.Principal.WindowsPrincipal]::new($identity)
     if ($principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {

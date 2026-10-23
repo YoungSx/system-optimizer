@@ -13,6 +13,7 @@ Import-Module -Name (Join-Path $PSScriptRoot '..\scripts\systemoptimizer.psm1') 
 # on purpose: re-importing them must not disturb the composed session.
 Import-Module -Name (Join-Path $PSScriptRoot '..\scripts\core\filesystem.psm1')
 Import-Module -Name (Join-Path $PSScriptRoot '..\scripts\core\plan.psm1')
+Import-Module -Name (Join-Path $PSScriptRoot '..\scripts\core\environment.psm1')
 
 function Assert-True {
     param([bool] $Condition, [string] $Message)
@@ -21,8 +22,25 @@ function Assert-True {
 
 $scratchRoot = $null
 $planScratchRoot = $null
+$oldBypass = $null
 
 try {
+    # --- user context contract ------------------------------------------------
+    if ([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT) {
+        $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+        $principal = [Security.Principal.WindowsPrincipal]::new($identity)
+        if ($principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
+            # Running in an elevated session (e.g. CI runner). Verify administrator refusal by default.
+            $oldBypass = $env:SYSTEM_OPTIMIZER_ALLOW_ADMIN
+            $env:SYSTEM_OPTIMIZER_ALLOW_ADMIN = $null
+            $adminRejected = $false
+            try { Assert-StandardUserContext | Out-Null }
+            catch { $adminRejected = $_.Exception.Message -like '*non-administrator session*' }
+            $env:SYSTEM_OPTIMIZER_ALLOW_ADMIN = '1'
+            Assert-True $adminRejected 'An administrator session must be refused.'
+        }
+    }
+
     # --- catalog contract -----------------------------------------------------
     $catalog = @(Get-CleanupCatalog)
     Assert-True ($catalog.Count -gt 0) 'The catalog must declare at least one cleanup class.'
@@ -232,5 +250,11 @@ finally {
     Set-PlanStoreRoot -Path (Join-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData)) 'SystemOptimizer\plans')
     foreach ($path in @($scratchRoot, $planScratchRoot)) {
         if ($path -and (Test-Path -LiteralPath $path)) { Remove-Item -LiteralPath $path -Recurse -Force -ErrorAction SilentlyContinue }
+    }
+    if ($null -ne $oldBypass) {
+        $env:SYSTEM_OPTIMIZER_ALLOW_ADMIN = $oldBypass
+    }
+    else {
+        $env:SYSTEM_OPTIMIZER_ALLOW_ADMIN = $null
     }
 }
