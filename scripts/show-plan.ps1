@@ -4,6 +4,8 @@ param(
     [switch] $Full
 )
 
-$modulePath = Join-Path $PSScriptRoot 'cleanup.psm1'
-Import-Module -Name $modulePath -Force -ErrorAction Stop
-Get-SystemCleanupPlanDetails -PlanId $PlanId -Full:$Full | ConvertTo-Json -Depth 5
+# Shows what an existing plan contains. Default output names a few files per
+# category; -Full is the only path that reveals complete paths.
+
+Import-Module -Name (Join-Path $PSScriptRoot 'systemoptimizer.psm1') -Force -ErrorAction Stop
+Get-SystemCleanupPlanDetails -PlanId $PlanId -Full:$Full | ConvertTo-Json -Depth 6

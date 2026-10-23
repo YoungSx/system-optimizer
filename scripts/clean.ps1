@@ -4,12 +4,16 @@ param(
     [Parameter(Mandatory)][string] $ApprovedPlanId
 )
 
-$modulePath = Join-Path $PSScriptRoot 'cleanup.psm1'
-Import-Module -Name $modulePath -Force -ErrorAction Stop
-$invokeParameters = @{
+# Executes one approved plan. -ApprovedPlanId must repeat the plan being run, so
+# a typo or a stale conversation cannot authorize a different batch.
+
+Import-Module -Name (Join-Path $PSScriptRoot 'systemoptimizer.psm1') -Force -ErrorAction Stop
+
+$executionParameters = @{
     PlanId = $PlanId
     ApprovedPlanId = $ApprovedPlanId
 }
-if ($PSBoundParameters.ContainsKey('WhatIf')) { $invokeParameters.WhatIf = $WhatIf }
-if ($PSBoundParameters.ContainsKey('Confirm')) { $invokeParameters.Confirm = $Confirm }
-Invoke-SystemCleanupPlan @invokeParameters | ConvertTo-Json -Depth 6
+if ($PSBoundParameters.ContainsKey('WhatIf')) { $executionParameters.WhatIf = $WhatIf }
+if ($PSBoundParameters.ContainsKey('Confirm')) { $executionParameters.Confirm = $Confirm }
+
+Get-SystemCleanupPlanExecution @executionParameters | ConvertTo-Json -Depth 8

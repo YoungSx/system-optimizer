@@ -1,0 +1,44 @@
+Set-StrictMode -Version Latest
+
+# A class module declares its own dependencies so it can be imported, tested,
+# and reasoned about on its own. It never relies on the host module's session.
+$script:CorePath = Join-Path (Split-Path -Parent $PSScriptRoot) 'core'
+Import-Module -Name (Join-Path $script:CorePath 'filesystem.psm1') -ErrorAction Stop
+Import-Module -Name (Join-Path $script:CorePath 'environment.psm1') -ErrorAction Stop
+
+# Explorer thumbnail and icon caches live in two unrelated file families under
+# Explorer's app data: thumbcache_*.db and iconcache_*.db. They are indexed by
+# Explorer, so only files Explorer is not currently holding are selectable, and
+# the cache rebuilds on demand.
+
+function Get-CleanupClass {
+    return [pscustomobject]@{
+        Id = 'thumbnails'
+        Title = '资源管理器缩略图缓存'
+        TitleEn = 'Explorer thumbnail caches'
+        Risk = 'Low'
+        MinAgeDays = 7
+        RequiresExplicitOptIn = $false
+        Impact = '资源管理器为图片和视频生成的预览缩略图。删除后下次打开文件夹会重新生成，图标可能短暂显示为空白。'
+        Roots = @('Microsoft\Windows\Explorer')
+        Collect = {
+            param($Root, $CutoffUtc, $MaximumEntries)
+
+            $explorerRoot = Resolve-UserCacheRoot -RelativePath 'Microsoft\Windows\Explorer'
+            if (-not $explorerRoot) { return $null }
+
+            $scan = Get-CandidatesFromRoot -Root $explorerRoot -CutoffUtc $CutoffUtc -MaximumEntries $MaximumEntries
+            $scoped = @($scan.Candidates | Where-Object { $_.Path -match '\\(thumbcache|iconcache)_[^\\]*\.db$' })
+            if ($scoped.Count -eq 0) { return $null }
+
+            return [pscustomobject]@{
+                Candidates = $scoped
+                SkippedReparsePoints = $scan.SkippedReparsePoints
+                SkippedReadErrors = $scan.SkippedReadErrors
+                ObservedEntries = $scan.ObservedEntries
+            }
+        }
+    }
+}
+
+Export-ModuleMember -Function Get-CleanupClass
