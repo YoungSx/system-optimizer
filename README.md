@@ -18,6 +18,8 @@ Adding a category means adding one file under `scripts/classes/` that exports `G
 
 ```
 SKILL.md                       Agent instructions (portable frontmatter + metadata.workbuddy block)
+CHANGELOG.md                   Version history and release notes
+docs/release-process.md        Standard release process, SemVer policy, and SOP
 references/cleanup-policy.md   Risk levels, user-facing wording, V1 exclusions, research basis
 scripts/check.ps1              Report OS/account support and the live catalog; no scan
 scripts/scan.ps1               Build a plan; prints the plan summary as JSON
@@ -32,7 +34,10 @@ scripts/core/plan.psm1         Sealed plan manifests, checksums, summary renderi
 scripts/core/executor.psm1     Revalidating execution into the Recycle Bin
 scripts/classes/*.psm1         One file per cleanup category
 tests/smoke.ps1                Behaviour tests for the safety contract
-tools/package-workbuddy.ps1    Build the WorkBuddy marketplace zip
+tools/package-workbuddy.ps1    Build the WorkBuddy marketplace zip and SHA-256 hash
+tools/release.ps1              Release assistant: version bump, validation, tag & release
+.github/workflows/ci.yml       CI pipeline: smoke tests and package verification on Windows
+.github/workflows/release.yml  Release pipeline: automated build and GitHub Release upon tag push
 ```
 
 ## Run
@@ -55,6 +60,16 @@ Categories marked `RequiresExplicitOptIn` are refused at plan time unless the ca
 
 Free space is measured before the scan and after execution; the reported delta is a real measurement but other processes writing to the same drive can dilute it.
 
-## Packaging for WorkBuddy
+## Packaging & Release
 
-`tools/package-workbuddy.ps1` flattens the `metadata.workbuddy` block into the top-level frontmatter WorkBuddy expects (`display_name`, `description_zh`, `description_en`, `category`, `version`, `author`) and writes `build/system-optimizer-<version>.zip` with `system-optimizer/` as the archive root.
+- **Release Documentation**: See [`docs/release-process.md`](file:///home/ubuntu/.t3/worktrees/system-optimizer/t3-744f0112/docs/release-process.md) for full release procedures, SemVer rules, and hotfix guidelines.
+- **Packaging for WorkBuddy**: `tools/package-workbuddy.ps1` flattens the `metadata.workbuddy` block into the top-level frontmatter WorkBuddy expects (`display_name`, `description_zh`, `description_en`, `category`, `version`, `author`) and writes `build/system-optimizer-<version>.zip` and `.sha256` with `system-optimizer/` as the archive root.
+- **Automated Release Script**:
+  ```powershell
+  # Preview patch bump
+  pwsh -File tools/release.ps1 -Bump patch -DryRun
+
+  # Bump minor version, update changelog, verify package, and create git tag
+  pwsh -File tools/release.ps1 -Bump minor -Commit -Tag
+  ```
+- **CI / CD**: Automatically verified on Windows via GitHub Actions (`.github/workflows/ci.yml`). Tag pushes (`v*`) automatically trigger `.github/workflows/release.yml` to build the zip package, verify sha256, and publish a GitHub Release with attached assets.

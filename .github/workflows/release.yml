@@ -1,0 +1,105 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to release (e.g. v0.2.0). Leave empty to use SKILL.md version.'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+jobs:
+  publish-release:
+    name: Build & Publish Release
+    runs-on: windows-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Resolve and validate version
+        id: version_check
+        shell: pwsh
+        run: |
+          $skillContent = Get-Content -LiteralPath 'SKILL.md' -Raw
+          $match = [regex]::Match($skillContent, '(?m)^\s*version:\s*["'']?(?<ver>\d+\.\d+\.\d+)["'']?')
+          if (-not $match.Success) {
+            throw "Could not extract version from SKILL.md"
+          }
+          $skillVersion = $match.Groups['ver'].Value
+
+          $inputTag = "${{ github.event.inputs.tag }}"
+          $refTag = ""
+          if ("${{ github.ref }}" -like "refs/tags/*") {
+            $refTag = "${{ github.ref }}".Substring("refs/tags/".Length)
+          }
+
+          $targetTag = if ($inputTag) { $inputTag } elseif ($refTag) { $refTag } else { "v$skillVersion" }
+          $cleanVersion = $targetTag.TrimStart('v')
+
+          if ($cleanVersion -ne $skillVersion) {
+            throw "Version mismatch! Target tag specifies '$cleanVersion', but SKILL.md has '$skillVersion'."
+          }
+
+          Write-Host "Target Tag: $targetTag"
+          Write-Host "Version:    $cleanVersion"
+          "TAG=$targetTag" >> $env:GITHUB_ENV
+          "VERSION=$cleanVersion" >> $env:GITHUB_ENV
+
+      - name: Run safety smoke tests
+        shell: pwsh
+        run: |
+          pwsh -File tests/smoke.ps1
+
+      - name: Build WorkBuddy package
+        shell: pwsh
+        run: |
+          pwsh -File tools/package-workbuddy.ps1 -OutputDirectory build
+
+      - name: Extract release notes
+        id: release_notes
+        shell: pwsh
+        run: |
+          $notes = ""
+          if (Test-Path -LiteralPath 'CHANGELOG.md') {
+            $changelog = Get-Content -LiteralPath 'CHANGELOG.md' -Raw
+            $pattern = "(?ms)^##\s*\[$([regex]::Escape($env:VERSION))\].*?\r?\n(?<body>.*?)(?=^##\s*\[|\z)"
+            $match = [regex]::Match($changelog, $pattern)
+            if ($match.Success) {
+              $notes = $match.Groups['body'].Value.Trim()
+            }
+          }
+
+          if (-not $notes) {
+            $notes = "Release $env:TAG"
+          }
+
+          $notesFile = Join-Path $env:RUNNER_TEMP "RELEASE_NOTES.md"
+          [IO.File]::WriteAllText($notesFile, $notes, [Text.UTF8Encoding]::new($false))
+          "NOTES_FILE=$notesFile" >> $env:GITHUB_ENV
+
+      - name: Publish GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $zip = Get-ChildItem -Path build -Filter '*.zip' | Select-Object -First 1
+          $sha = Get-ChildItem -Path build -Filter '*.sha256' | Select-Object -First 1
+
+          if (-not $zip) {
+            throw "Package zip file not found in build/"
+          }
+
+          Write-Host "Creating release for $env:TAG..."
+          gh release create "$env:TAG" `
+            "$($zip.FullName)" `
+            "$($sha.FullName)" `
+            --title "System Optimizer $env:TAG" `
+            --notes-file "$env:NOTES_FILE"

@@ -45,6 +45,11 @@ $description = Get-TopLevelValue -Text $frontmatter -Key 'description'
 if (-not $name) { throw 'SKILL.md frontmatter is missing name.' }
 if (-not $description) { throw 'SKILL.md frontmatter is missing description.' }
 
+# Prefer name from frontmatter so checkout/worktree directory names do not alter package root or zip filename
+if ($name) {
+    $skillName = $name
+}
+
 $block = [regex]::Match($frontmatter, '(?ms)^metadata:\s*\r?\n(?<block>(?:[ \t]+.*(?:\r?\n|$))+?)(?=^\S|\z)')
 if (-not $block.Success) {
     throw 'SKILL.md frontmatter is missing the metadata block with WorkBuddy fields.'
@@ -63,7 +68,7 @@ function Format-YamlScalar {
     param([string] $Value)
     # Double-quoted YAML keeps colons, apostrophes, and CJK text unambiguous.
     $escaped = $Value.Replace('\', '\\').Replace('"', '\"')
-    return '"' + $escaped + '"'
+    return '\"' + $escaped + '\"'
 }
 
 $required = @('display_name', 'display_name_en', 'description_zh', 'description_en', 'category', 'version', 'author')
@@ -112,9 +117,15 @@ $zipPath = Join-Path $OutputDirectory "$skillName-$version.zip"
 if (Test-Path -LiteralPath $zipPath) { Remove-Item -LiteralPath $zipPath -Force }
 Compress-Archive -LiteralPath $stageSkill -DestinationPath $zipPath -CompressionLevel Optimal
 
+$hash = (Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash
+$hashFile = "$zipPath.sha256"
+[IO.File]::WriteAllText($hashFile, "$hash *$([IO.Path]::GetFileName($zipPath))`n", $encoding)
+
 $entries = (Get-ChildItem -LiteralPath $stageSkill -File -Recurse).Count
 [pscustomobject]@{
     Zip = $zipPath
+    Sha256 = $hash
+    Sha256File = $hashFile
     RootFolder = $skillName
     FileCount = $entries
     Version = $version
