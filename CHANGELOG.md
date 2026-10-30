@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- Renamed skill identifier to `computer-optimizer` (`Computer Optimizer`) to resolve name collision on the WorkBuddy skill marketplace.
+- Enhanced bilingual (Chinese & English) coverage across all category definition modules (`ImpactEn` added to `temp`, `crashdumps`, `thumbnails`, `wer`, and `dxshadercache`).
+- Included `TitleEn` and `ImpactEn` in JSON plan sections, blocked classes, and details output.
+- Updated documentation and packaging targets to reflect the `computer-optimizer` naming.
+
 ## [0.2.1] - 2026-10-30
 
 ### Added
@@ -38,18 +44,3 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Execution-time profile guard refusing any plan whose recorded root is outside the user profile.
 - Pre- and post-cleanup disk free space measurement.
 - Contract validation and unique ID enforcement for category modules.
-
-### Changed
-- Replaced monolithic single-file temp cleanup with modular category architecture.
-- Decoupled module imports to avoid dropping exports across sessions.
-
-## [0.1.0] - 2026-10-23
-
-### Added
-- Initial release of System Optimizer Windows Agent Skill.
-- Plan-then-execute cleanup model for `%LOCALAPPDATA%\Temp`.
-- SHA-256 sealed plan manifests stored under `%LOCALAPPDATA%\SystemOptimizer\plans`.
-- Strict pre-execution candidate revalidation and Recycle Bin movement.
-- Mandatory refusal of administrator privilege and reparse points/symlinks.
-- Behaviour safety smoke tests (`tests/smoke.ps1`).
-- WorkBuddy marketplace packaging script (`tools/package-workbuddy.ps1`).

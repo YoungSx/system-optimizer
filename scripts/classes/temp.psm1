@@ -22,6 +22,7 @@ function Get-CleanupClass {
         MinAgeDays = 30
         RequiresExplicitOptIn = $false
         Impact = '各类程序运行时写入的临时文件。正在运行的程序会重新创建它们，清理不影响已安装的应用。'
+        ImpactEn = 'Temporary files written by applications during execution. Active programs will automatically recreate them, and cleanup does not affect installed software.'
         Roots = @('Temp')
         Collect = {
             param($Root, $CutoffUtc, $MaximumEntries)
