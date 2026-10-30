@@ -46,7 +46,9 @@ try {
     Assert-True ($catalog.Count -gt 0) 'The catalog must declare at least one cleanup class.'
     foreach ($definition in $catalog) {
         Assert-True ([bool]$definition.Title) "Class '$($definition.Id)' must have a title."
+        Assert-True ([bool]$definition.TitleEn) "Class '$($definition.Id)' must have an English title."
         Assert-True ([bool]$definition.Impact) "Class '$($definition.Id)' must explain its impact."
+        Assert-True ([bool]$definition.ImpactEn) "Class '$($definition.Id)' must explain its impact in English."
         Assert-True ($definition.Risk -in @('Low', 'Review', 'High')) "Class '$($definition.Id)' must declare a known risk level."
         Assert-True ($definition.MinAgeDays -ge 0) "Class '$($definition.Id)' must declare a non-negative age floor."
         Assert-True ($null -ne $definition.Collect) "Class '$($definition.Id)' must provide a collector."
@@ -137,6 +139,7 @@ try {
             Risk = 'Low'
             MinAgeDays = 30
             Impact = 'test'
+            ImpactEn = 'test'
             RequiresExplicitOptIn = $false
             Roots = @($ScanRoot)
             CandidateCount = 1
@@ -248,13 +251,13 @@ try {
 }
 finally {
     Set-PlanStoreRoot -Path (Join-Path ([Environment]::GetFolderPath([Environment+SpecialFolder]::LocalApplicationData)) 'SystemOptimizer\plans')
-    foreach ($path in @($scratchRoot, $planScratchRoot)) {
-        if ($path -and (Test-Path -LiteralPath $path)) { Remove-Item -LiteralPath $path -Recurse -Force -ErrorAction SilentlyContinue }
+    if ($scratchRoot -and (Test-Path -LiteralPath $scratchRoot)) {
+        Remove-Item -LiteralPath $scratchRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
+    if ($planScratchRoot -and (Test-Path -LiteralPath $planScratchRoot)) {
+        Remove-Item -LiteralPath $planScratchRoot -Recurse -Force -ErrorAction SilentlyContinue
     }
     if ($null -ne $oldBypass) {
         $env:SYSTEM_OPTIMIZER_ALLOW_ADMIN = $oldBypass
-    }
-    else {
-        $env:SYSTEM_OPTIMIZER_ALLOW_ADMIN = $null
     }
 }
