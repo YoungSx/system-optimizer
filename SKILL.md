@@ -14,7 +14,7 @@ examples_en:
   - Scan for temporary files and reusable cache
   - Clean junk files to free disk space
 category: productivity
-version: 0.2.1
+version: 0.2.2
 author: Shangxin
 ---
 

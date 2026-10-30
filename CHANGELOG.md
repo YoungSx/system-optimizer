@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-10-30
+
 ### Added
 - Added high-resolution project icon (`assets/icon.png`, 512x512) for visual branding across `README.md`, `SKILL.md`, and WorkBuddy marketplace avatar.
 - Updated `tools/package-workbuddy.ps1` to include `assets/` in the WorkBuddy distribution ZIP package.
