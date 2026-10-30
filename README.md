@@ -1,4 +1,4 @@
-# 系统优化助手 (System Optimizer)
+# 系统优化助手 (Computer Optimizer)
 
 [English](#english-summary) | [中文说明](#中文说明)
 
@@ -6,7 +6,7 @@
 
 ## 中文说明
 
-**系统优化助手 (System Optimizer)** 是一款专为 Windows 10 与 Windows 11 设计的安全磁盘空间回收 Agent Skill，全面对齐**腾讯 WorkBuddy 开放平台技能规范**与通用 Agent 技能规范。它只扫描属于当前用户的、可由软件自动安全重建的缓存类别，将扫描结果整理为直观的可审查计划，并仅在获得用户明确审批后将计划内的文件移入回收站。
+**系统优化助手 (Computer Optimizer)** 是一款专为 Windows 10 与 Windows 11 设计的安全磁盘空间回收 Agent Skill，全面对齐**腾讯 WorkBuddy 开放平台技能规范**与通用 Agent 技能规范。它只扫描属于当前用户的、可由软件自动安全重建的缓存类别，将扫描结果整理为直观的可审查计划，并仅在获得用户明确审批后将计划内的文件移入回收站。
 
 ### 核心特性与支持类别
 
@@ -25,9 +25,9 @@
 ### WorkBuddy 规范对齐
 
 1. **元数据规范**：`SKILL.md` 顶层包含 WorkBuddy 官方标准 Frontmatter：
-   - `name`: 连字符小写英文字母唯一标识 (`system-optimizer`)
+   - `name`: 连字符小写英文字母唯一标识 (`computer-optimizer`)
    - `display_name`: 界面中文展示名（“系统优化助手”）
-   - `display_name_en`: 英文展示名称（“System Optimizer”）
+   - `display_name_en`: 英文展示名称（“Computer Optimizer”）
    - `description`: 意图识别与场景触发描述（含触发时机与触发词）
    - `description_zh` / `description_en`: 中英文双语功能简介
    - `examples_zh` / `examples_en`: 市场与快捷提问指令中英文列表
@@ -39,7 +39,7 @@
 
 ## English Summary
 
-**System Optimizer** is a safe, transparent disk space recovery Agent Skill designed for Windows 10 and 11, conforming strictly to both **Tencent WorkBuddy specifications** and generic Agent Skill standards. It scans per-user cache categories that programs rebuild on demand, presents them as a single reviewable plan, and moves only explicitly approved files to the Recycle Bin.
+**Computer Optimizer** is a safe, transparent disk space recovery Agent Skill designed for Windows 10 and 11, conforming strictly to both **Tencent WorkBuddy specifications** and generic Agent Skill standards. It scans per-user cache categories that programs rebuild on demand, presents them as a single reviewable plan, and moves only explicitly approved files to the Recycle Bin.
 
 ### Category Overview
 
@@ -116,7 +116,7 @@ pwsh -File tests/smoke.ps1
 
 - **发版文档**：完整发版 SOP、SemVer 规范及热修复流程请参阅 [`docs/release-process.md`](docs/release-process.md)。
 - **WorkBuddy 打包工具**：
-  `tools/package-workbuddy.ps1` 会自动校验元数据，生成符合 WorkBuddy 开放平台规范的标准分发包 `build/system-optimizer-<version>.zip` 及其 `.sha256` 校验和文件，解压后 `SKILL.md` 直接位于根目录。
+  `tools/package-workbuddy.ps1` 会自动校验元数据，生成符合 WorkBuddy 开放平台规范的标准分发包 `build/computer-optimizer-<version>.zip` 及其 `.sha256` 校验和文件，解压后 `SKILL.md` 直接位于根目录。
 - **自动化发版脚本**：
   ```powershell
   # 试运行补丁版本递增预览

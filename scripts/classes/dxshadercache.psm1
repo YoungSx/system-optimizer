@@ -6,11 +6,14 @@ $script:CorePath = Join-Path (Split-Path -Parent $PSScriptRoot) 'core'
 Import-Module -Name (Join-Path $script:CorePath 'filesystem.psm1') -ErrorAction Stop
 Import-Module -Name (Join-Path $script:CorePath 'environment.psm1') -ErrorAction Stop
 
-# Shader caches are pure derived data: the GPU driver regenerates every entry on
-# demand, so there is no age floor to protect. The real risk is different — the
-# cache is actively written by the driver while a game or a DWM composition is
-# running, so clearing mid-session both fails and stutters. Guard on processes
-# and require an explicit opt-in instead of leaning on a timestamp.
+# GPU shader caches are large, safe to rebuild, but expensive to rebuild in the
+# moment. Deleting them while a game is running or while the display server is
+# actively compiling will immediately re-create files and cause stutters.
+#
+# Because of that trade-off this class:
+# 1. Declares Risk = 'Review' and RequiresExplicitOptIn = $true.
+# 2. Checks for known GPU processes before declaring itself ready to scan.
+# 3. Requires an explicit explanation to the user before they approve.
 
 $script:Vendors = @(
     [pscustomobject]@{ Name = 'NVIDIA'; RelativePath = 'NVIDIA\DXCache' }
@@ -31,6 +34,7 @@ function Get-CleanupClass {
         MinAgeDays = 0
         RequiresExplicitOptIn = $true
         Impact = '显卡驱动为加速渲染保存的编译结果，删除后会自动重建。重建期间启动游戏可能比平时更慢、更卡一些。'
+        ImpactEn = 'Pre-compiled shaders saved by graphics drivers to accelerate rendering. Rebuilt automatically, but launching games may experience minor initial stutter while recompiling.'
         Roots = @('NVIDIA\DXCache', 'NVIDIA\GLCache', 'AMD\DxCache', 'AMD\GLCache', 'Intel\ShaderCache')
         Collect = {
             param($Root, $CutoffUtc, $MaximumEntries)

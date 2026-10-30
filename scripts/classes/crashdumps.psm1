@@ -19,6 +19,7 @@ function Get-CleanupClass {
         MinAgeDays = 7
         RequiresExplicitOptIn = $false
         Impact = '应用崩溃时写下的内存转储文件，只供调试使用。若正在排查某个崩溃，先保留再清理。'
+        ImpactEn = 'Memory dump files written when applications crash, used only for debugging. Retain them if actively investigating a recent crash.'
         Roots = @('CrashDumps')
         Collect = {
             param($Root, $CutoffUtc, $MaximumEntries)

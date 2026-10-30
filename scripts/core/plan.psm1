@@ -125,7 +125,7 @@ function New-SystemCleanupPlan {
 
         $ready = Test-ClassReady -Entry $entry -Id $id
         if (-not $ready.Ready) {
-            $blocked.Add([pscustomobject]@{ ClassId = $id; Title = $definition.Title; Reason = $ready.Reason })
+            $blocked.Add([pscustomobject]@{ ClassId = $id; Title = $definition.Title; TitleEn = $definition.TitleEn; Reason = $ready.Reason })
             continue
         }
 
@@ -134,19 +134,19 @@ function New-SystemCleanupPlan {
             $collected = Invoke-ClassCollector -Entry $entry -CutoffUtc $cutoffUtc
         }
         catch {
-            $notApplicable.Add([pscustomobject]@{ ClassId = $id; Title = $definition.Title; Reason = $_.Exception.Message })
+            $notApplicable.Add([pscustomobject]@{ ClassId = $id; Title = $definition.Title; TitleEn = $definition.TitleEn; Reason = $_.Exception.Message })
             continue
         }
 
         if ($null -eq $collected) {
-            $notApplicable.Add([pscustomobject]@{ ClassId = $id; Title = $definition.Title; Reason = '这台电脑上不存在该类别的缓存目录，已跳过。' })
+            $notApplicable.Add([pscustomobject]@{ ClassId = $id; Title = $definition.Title; TitleEn = $definition.TitleEn; Reason = '这台电脑上不存在该类别的缓存目录，已跳过。' })
             continue
         }
 
         $bytes = [long]0
         foreach ($candidate in $collected.Candidates) { $bytes += [long]$candidate.Length }
         if ($collected.Candidates.Count -eq 0) {
-            $notApplicable.Add([pscustomobject]@{ ClassId = $id; Title = $definition.Title; Reason = "没有超过 $($definition.MinAgeDays) 天未修改的文件，已跳过。" })
+            $notApplicable.Add([pscustomobject]@{ ClassId = $id; Title = $definition.Title; TitleEn = $definition.TitleEn; Reason = "没有超过 $($definition.MinAgeDays) 天未修改的文件，已跳过。" })
             continue
         }
 
@@ -157,6 +157,7 @@ function New-SystemCleanupPlan {
             Risk = $definition.Risk
             MinAgeDays = [int]$definition.MinAgeDays
             Impact = $definition.Impact
+            ImpactEn = $definition.ImpactEn
             RequiresExplicitOptIn = [bool]$definition.RequiresExplicitOptIn
             Roots = @($collected.Roots)
             CandidateCount = $collected.Candidates.Count
@@ -202,6 +203,7 @@ function New-SystemCleanupPlan {
                 Risk = $_.Risk
                 MinAgeDays = $_.MinAgeDays
                 Impact = $_.Impact
+                ImpactEn = $_.ImpactEn
                 RequiresExplicitOptIn = $_.RequiresExplicitOptIn
                 Roots = $_.Roots
                 CandidateCount = $_.CandidateCount
@@ -283,9 +285,11 @@ function Get-SystemCleanupPlanDetails {
         [ordered]@{
             ClassId = [string]$section.ClassId
             Title = [string]$section.Title
+            TitleEn = [string]$section.TitleEn
             Risk = [string]$section.Risk
             MinAgeDays = [int]$section.MinAgeDays
             Impact = [string]$section.Impact
+            ImpactEn = [string]$section.ImpactEn
             CandidateCount = [int]$section.CandidateCount
             EstimatedBytes = [long]$section.EstimatedBytes
             EstimatedSize = Format-ByteCount ([long]$section.EstimatedBytes)

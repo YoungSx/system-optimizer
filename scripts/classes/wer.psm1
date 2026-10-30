@@ -25,6 +25,7 @@ function Get-CleanupClass {
         MinAgeDays = 7
         RequiresExplicitOptIn = $false
         Impact = 'Windows 保存的崩溃与异常报告记录。保留最近 7 天的报告以便排查问题，更早的清理后不再能查看。'
+        ImpactEn = 'Crash and exception reports saved by Windows. Retains reports from the last 7 days for troubleshooting; older reports can no longer be viewed once cleared.'
         Roots = $script:RootPaths
         Collect = {
             param($Root, $CutoffUtc, $MaximumEntries)
