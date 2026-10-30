@@ -20,6 +20,10 @@ author: Shangxin
 
 # 系统优化助手 (Computer Optimizer)
 
+<p align="center">
+  <img src="assets/icon.png" alt="系统优化助手 / Computer Optimizer" width="128" />
+</p>
+
 在不要求用户理解专业技术输出的前提下，协助 Windows 用户安全回收存储空间。绝不删除无法恢复的文件，所有操作均需用户明确审批且仅移入回收站。
 Help a Windows user recover storage space without asking them to interpret technical output, and without ever deleting something they cannot get back.
 

@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Added high-resolution project icon (`assets/icon.png`, 512x512) for visual branding across `README.md`, `SKILL.md`, and WorkBuddy marketplace avatar.
+- Updated `tools/package-workbuddy.ps1` to include `assets/` in the WorkBuddy distribution ZIP package.
+
 ### Changed
 - Renamed skill identifier to `computer-optimizer` (`Computer Optimizer`) to resolve name collision on the WorkBuddy skill marketplace.
 - Enhanced bilingual (Chinese & English) coverage across all category definition modules (`ImpactEn` added to `temp`, `crashdumps`, `thumbnails`, `wer`, and `dxshadercache`).
