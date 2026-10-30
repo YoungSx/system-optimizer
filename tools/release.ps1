@@ -114,10 +114,10 @@ if (Test-Path -LiteralPath $changelogFile) {
             Write-Host "[DryRun] Would replace [Unreleased] with [$targetVersion] - $today in $changelogFile"
         }
         else {
-            $replacement = "## [Unreleased]`n`n## [$targetVersion] - $today"
+            $replacement = "## [Unreleased]`n`n## [$targetVersion] - $today`n"
             $updatedChangelog = [regex]::Replace(
                 $changelogContent,
-                '(?m)^##\s*\[Unreleased\]\s*',
+                '(?m)^##\s*\[Unreleased\][ \t]*\r?\n',
                 $replacement
             )
             [IO.File]::WriteAllText($changelogFile, $updatedChangelog, $encoding)
