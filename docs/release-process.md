@@ -13,9 +13,10 @@
 - **PATCH（补丁版本号）**：安全加固、Bug 修复、过滤条件完善、文档与文案调整。
 
 ### 2. 核心原则
-1. **单一事实来源 (Single Source of Truth)**：`SKILL.md` 中的 `metadata.workbuddy.version` 为版本唯一来源，打包脚本会自动提取并注入到 WorkBuddy 规范格式中。
+1. **单一事实来源 (Single Source of Truth)**：`SKILL.md` 顶层 YAML frontmatter 中的 `version` 字段为版本唯一来源，打包脚本与 CI/CD 自动化流水线均直接从此提取。
 2. **安全先于发布**：发版前必须通过 `tests/smoke.ps1` 冒烟测试（Windows 环境下验证篡改拦截、权限拒绝、路径防穿越等安全机制）。
 3. **标签与版本对齐**：Git Tag（如 `v0.2.0`）必须与 `SKILL.md` 中声明的 `version` 完全一致，GitHub Actions 会对此进行硬性校验。
+4. **WorkBuddy 规范对齐**：技能包遵循腾讯 WorkBuddy 官方标准，ZIP 根目录下直接存放 `SKILL.md`、`references/` 和 `scripts/`，提供完整的中英文双语与标准元数据。
 
 ---
 
@@ -26,7 +27,7 @@
 | 模块 | 位置 | 说明 |
 | --- | --- | --- |
 | **版本管理与发版助手** | `tools/release.ps1` | 本地一键更新版本、校验测试、更新变更日志、打包并打 Tag |
-| **WorkBuddy 打包脚本** | `tools/package-workbuddy.ps1` | 自动扁平化元数据、构建 `system-optimizer-<version>.zip` 及 SHA-256 校验和 |
+| **WorkBuddy 打包脚本** | `tools/package-workbuddy.ps1` | 校验元数据规范、构建符合 WorkBuddy 根目录要求的 `system-optimizer-<version>.zip` 及 SHA-256 校验和 |
 | **CI 持续集成** | `.github/workflows/ci.yml` | 每次 PR/Push 到主分支时在 Windows 运行冒烟测试与打包校验 |
 | **Release 自动发布** | `.github/workflows/release.yml` | 推送 `v*` Tag 或手动触发时自动测试、打包并发布 GitHub Release 产物 |
 | **变更记录** | `CHANGELOG.md` | 记录每个版本的特性、修复与变更内容 |
@@ -58,18 +59,18 @@ pwsh -File tools/release.ps1 -Version 0.3.0 -DryRun
 # 本地执行测试、更新版本号、打 Git Tag
 pwsh -File tools/release.ps1 -Bump patch -Commit -Tag
 ```
-> **提示**：若在非 Windows 开发机（如 Linux/macOS）上准备发版，脚本会自动提示跳过 Windows 专有的系统测试，完整的安全测试将由 GitHub Actions CI 保证。也可显式传入 `-SkipTests`。
+> **提示**：若在非 Windows 开发机（如 Linux/macOS）上准备发版，脚本会自动提示跳过 Windows 专有的系统测试，完整的安全测试将由 GitHub Actions CI 保证。也可以显式传入 `-SkipTests`。
 
-#### 3. 推送至远程仓库
-将提交和 Tag 推送到远程分支，触发 GitHub 自动化流水线：
+#### 3. 推送至远端仓库
+将提交和 Tag 推送到远端分支，触发 GitHub 自动化流水线：
 ```bash
 git push origin HEAD && git push origin --tags
 ```
-*(如果需要一步到位推送到远程，也可以在 `release.ps1` 中追加 `-Push` 参数)*。
+*(如果需要一步到位推送到远端，也可以在 `release.ps1` 中附加 `-Push` 参数)*。
 
 ---
 
-### 方式 B：手动发版流程
+### 方式 B：全手动发版流程
 
 如果你希望全手动控制每个发版细节，请按以下步骤操作：
 
@@ -82,11 +83,9 @@ git status
 ```
 
 #### 步骤 2：更新版本号与变更日志
-1. 打开 `SKILL.md`，修改 `metadata.workbuddy.version`，例如：
+1. 打开 `SKILL.md`，修改顶层 `version` 字段，例如：
    ```yaml
-   metadata:
-     workbuddy:
-       version: 0.2.1
+   version: 0.2.1
    ```
 2. 打开 `CHANGELOG.md`，将 `## [Unreleased]` 下的内容归档至新版本小节：
    ```markdown
@@ -103,7 +102,7 @@ git status
 pwsh -File tests/smoke.ps1
 pwsh -File tools/package-workbuddy.ps1
 ```
-检查生成的 `build/system-optimizer-0.2.1.zip` 及其 `.sha256` 校验文件。
+检查生成的 `build/system-optimizer-0.2.1.zip` 及其 `.sha256` 校验文件，确保解压后 `SKILL.md` 直接位于根目录下。
 
 #### 步骤 4：提交与打标签
 ```bash
@@ -138,39 +137,28 @@ GitHub Release 生成后，即可交付至 WorkBuddy 市场或用户端：
    从 GitHub Releases 页面下载 `system-optimizer-<version>.zip`。
 2. **校验哈希**（可选但推荐）：
    ```powershell
-   Get-FileHash -Algorithm SHA256 .\system-optimizer-<version>.zip
+   Get-FileHash system-optimizer-0.2.0.zip -Algorithm SHA256
    ```
-   比对哈希值与 `.sha256` 文件一致。
-3. **上传平台**：
-   - 登录 WorkBuddy 开放平台/技能管理后台。
-   - 上传该 Zip 包。平台将识别根目录下的 `SKILL.md` 并解析展示名称、中文/英文描述、分类与版本号。
-   - 提交审核或直接上线。
+   对比 `.sha256` 文件内容确认无损。
+3. **上传至 WorkBuddy 开放平台**：
+   在 WorkBuddy 开放平台进入技能管理后台，选择“上传技能包”，直接上传 `system-optimizer-<version>.zip`。由于该包严格满足 `SKILL.md` 直接位于 ZIP 根目录且包含标准中英文双语 Frontmatter，平台将自动解析技能并进入快速发布/测试流程。
 
 ---
 
-## 六、异常处理与回滚指南
+## 六、常见问题与回滚策略
 
-### 1. 发现未发布的 Tag 打错或测试未通过
-若尚未推送远程：
+### 1. 发现严重缺陷需要撤回
+若已推送 Tag 但尚未对外广泛分发：
 ```bash
-git tag -d v0.2.1
+# 删除本地与远端 Tag
+git tag -d v0.2.0
+git push origin :refs/tags/v0.2.0
 ```
-若已推送到远程但尚未正式公布：
-```bash
-git push --delete origin v0.2.1
-git tag -d v0.2.1
-```
-在 GitHub Releases 页面中删除对应的草稿或未生效 Release。
+并在 GitHub 仓库后台手动删除对应的 Release。
 
-### 2. 已上线版本发现严重问题 (Hotfix)
-**严禁复用或覆盖已发布的版本号与 Tag！**
-1. 立即从 `master` 创建修复分支：
-   ```bash
-   git checkout -b hotfix/fix-path-traversal
-   ```
-2. 修复缺陷并添加针对性测试用例。
-3. 递增补丁版本（如 `0.2.1` -> `0.2.2`）：
-   ```powershell
-   pwsh -File tools/release.ps1 -Bump patch -Commit -Tag -Push
-   ```
-4. 等待 GitHub Actions 生成 `v0.2.2` 发布包，并在市场发布更新。
+### 2. 热修复 (Hotfix) 流程
+若线上版本发现安全漏洞或边界 Bug：
+1. 从发布 Tag 检出 hotfix 分支：`git checkout -b hotfix/0.2.1 v0.2.0`
+2. 修复问题并新增针对性测试用例。
+3. 运行 `pwsh -File tools/release.ps1 -Bump patch -Commit -Tag`
+4. 合并回 `master` 分支并推送到远端。

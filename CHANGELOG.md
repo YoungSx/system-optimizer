@@ -7,6 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Aligned `SKILL.md` frontmatter with official WorkBuddy skill specifications:
+  - Standardized top-level fields: `display_name` (系统优化助手), `display_name_en` (System Optimizer), `description_zh`, `description_en`, `examples_zh`, `examples_en`, `category`, `version`, `author`.
+  - Added bilingual preset command examples for the WorkBuddy marketplace and quick-prompt panel.
+- Added comprehensive bilingual (Chinese & English) instructions to `SKILL.md` and `references/cleanup-policy.md`:
+  - Step-by-step SOP workflow (Check -> Scan -> Present -> Threshold check -> Request approval -> Show details -> Clean -> Discard -> Report).
+  - Clear novice-friendly conversation guidelines, user reply options, and strict exclusion list.
+- Added `@references/cleanup-policy.md` resource reference syntax adhering to WorkBuddy agent guidelines.
+- Bilingual README (`README.md`) covering WorkBuddy alignment, supported categories, safety model, and packaging SOP.
+
+### Fixed
+- Fixed WorkBuddy ZIP packaging layout in `tools/package-workbuddy.ps1`:
+  - Files are now compressed directly into the archive root (`SKILL.md`, `references/`, `scripts/`), fixing upload error `450019` caused by nested wrapper directories.
+  - Fixed YAML scalar double-quote formatting bug in `tools/package-workbuddy.ps1`.
+- Updated CI verification in `.github/workflows/ci.yml` to validate root-level `SKILL.md` archive structure.
+
 ## [0.2.0] - 2026-10-24
 
 ### Added

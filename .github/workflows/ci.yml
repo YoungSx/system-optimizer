@@ -61,17 +61,16 @@ jobs:
             throw "Checksum mismatch! Expected $expectedHash, got $recordedHash"
           }
 
-          # Verify archive content has root folder system-optimizer
+          # Verify archive conforms to WorkBuddy specifications (SKILL.md directly at root)
           Add-Type -AssemblyName System.IO.Compression.FileSystem
           $archive = [System.IO.Compression.ZipFile]::OpenRead($zip.FullName)
-          $badEntries = $archive.Entries | Where-Object { -not $_.FullName.StartsWith('system-optimizer/') }
-          if ($badEntries.Count -gt 0) {
-            $archive.Dispose()
-            throw "Found archive entries not under 'system-optimizer/' root folder!"
-          }
-          $hasSkill = $archive.Entries | Where-Object { $_.FullName -eq 'system-optimizer/SKILL.md' }
+          $hasSkillAtRoot = $archive.Entries | Where-Object { $_.FullName -eq 'SKILL.md' }
+          $hasScripts = $archive.Entries | Where-Object { $_.FullName.StartsWith('scripts/') }
           $archive.Dispose()
-          if (-not $hasSkill) {
-            throw "Archive is missing 'system-optimizer/SKILL.md'!"
+          if (-not $hasSkillAtRoot) {
+            throw "Archive is missing 'SKILL.md' directly at root folder (WorkBuddy specification violation)!"
           }
-          Write-Host "Package integrity verification passed."
+          if (-not $hasScripts) {
+            throw "Archive is missing 'scripts/' folder!"
+          }
+          Write-Host "Package integrity and WorkBuddy specification verification passed."

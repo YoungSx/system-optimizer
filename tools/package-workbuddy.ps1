@@ -3,12 +3,13 @@ param(
     [string] $OutputDirectory
 )
 
-# Builds a WorkBuddy-uploadable zip from the generic Agent Skill source.
+# Builds a WorkBuddy-uploadable zip from the Agent Skill source.
 #
-# The repository keeps one source of truth: SKILL.md with a portable
-# `metadata.workbuddy` block. WorkBuddy expects its marketplace fields at the
-# top level of the frontmatter, so the packaging step flattens that block
-# instead of maintaining a second hand-written SKILL.md.
+# WorkBuddy open platform specification requirements:
+# 1. SKILL.md must be located directly at the root of the ZIP archive.
+# 2. Frontmatter must contain: name, display_name, display_name_en, description,
+#    description_zh, description_en, examples_zh, examples_en, category, version, author.
+# 3. Sub-resources: references/, scripts/, templates/ located directly under archive root.
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -37,56 +38,116 @@ function Get-TopLevelValue {
     $pattern = "(?m)^$([regex]::Escape($Key)):\s*(?<value>.*)$"
     $found = [regex]::Match($Text, $pattern)
     if (-not $found.Success) { return $null }
-    return $found.Groups['value'].Value.Trim()
+    $val = $found.Groups['value'].Value.Trim()
+    if ($val.StartsWith('"') -and $val.EndsWith('"')) {
+        $val = $val.Substring(1, $val.Length - 2)
+    }
+    elseif ($val.StartsWith("'") -and $val.EndsWith("'")) {
+        $val = $val.Substring(1, $val.Length - 2)
+    }
+    return $val
 }
-
-$name = Get-TopLevelValue -Text $frontmatter -Key 'name'
-$description = Get-TopLevelValue -Text $frontmatter -Key 'description'
-if (-not $name) { throw 'SKILL.md frontmatter is missing name.' }
-if (-not $description) { throw 'SKILL.md frontmatter is missing description.' }
-
-# Prefer name from frontmatter so checkout/worktree directory names do not alter package root or zip filename
-if ($name) {
-    $skillName = $name
-}
-
-$block = [regex]::Match($frontmatter, '(?ms)^metadata:\s*\r?\n(?<block>(?:[ \t]+.*(?:\r?\n|$))+?)(?=^\S|\z)')
-if (-not $block.Success) {
-    throw 'SKILL.md frontmatter is missing the metadata block with WorkBuddy fields.'
-}
-$metadata = $block.Groups['block'].Value
 
 function Get-NestedValue {
     param([string] $Text, [string] $Key)
     $pattern = "(?m)^[ \t]+$([regex]::Escape($Key)):\s*(?<value>.*)$"
     $found = [regex]::Match($Text, $pattern)
     if (-not $found.Success) { return $null }
-    return $found.Groups['value'].Value.Trim()
+    $val = $found.Groups['value'].Value.Trim()
+    if ($val.StartsWith('"') -and $val.EndsWith('"')) {
+        $val = $val.Substring(1, $val.Length - 2)
+    }
+    elseif ($val.StartsWith("'") -and $val.EndsWith("'")) {
+        $val = $val.Substring(1, $val.Length - 2)
+    }
+    return $val
+}
+
+function Get-YamlList {
+    param([string] $Text, [string] $Key)
+    $pattern = "(?m)^$([regex]::Escape($Key)):[ \t]*\r?\n(?<items>(?:[ \t]+-[ \t]+[^\r\n]*(?:\r?\n|$))+)"
+    $found = [regex]::Match($Text, $pattern)
+    if (-not $found.Success) { return @() }
+    $lines = $found.Groups['items'].Value -split '\r?\n'
+    $result = [System.Collections.Generic.List[string]]::new()
+    foreach ($line in $lines) {
+        $m = [regex]::Match($line, '^[ \t]+-[ \t]+(?<val>.*)$')
+        if ($m.Success) {
+            $item = $m.Groups['val'].Value.Trim().Trim('"', "'")
+            if ($item) { $result.Add($item) }
+        }
+    }
+    return $result.ToArray()
 }
 
 function Format-YamlScalar {
     param([string] $Value)
-    # Double-quoted YAML keeps colons, apostrophes, and CJK text unambiguous.
+    # Standard double-quoted YAML scalar
     $escaped = $Value.Replace('\', '\\').Replace('"', '\"')
-    return '\"' + $escaped + '\"'
+    return '"' + $escaped + '"'
 }
 
-$required = @('display_name', 'display_name_en', 'description_zh', 'description_en', 'category', 'version', 'author')
+# 1. Resolve metadata fields (top-level preferred, fallback to metadata.workbuddy)
+$name = Get-TopLevelValue -Text $frontmatter -Key 'name'
+$description = Get-TopLevelValue -Text $frontmatter -Key 'description'
+if (-not $name) { throw 'SKILL.md frontmatter is missing name.' }
+if (-not $description) { throw 'SKILL.md frontmatter is missing description.' }
+$skillName = $name
+
+$metaBlock = ""
+$metaMatch = [regex]::Match($frontmatter, '(?ms)^metadata:\s*\r?\n(?<block>(?:[ \t]+.*(?:\r?\n|$))+?)(?=^\S|\z)')
+if ($metaMatch.Success) {
+    $metaBlock = $metaMatch.Groups['block'].Value
+}
+
+$requiredKeys = @('display_name', 'display_name_en', 'description_zh', 'description_en', 'category', 'version', 'author')
+$resolvedMetadata = [ordered]@{}
+
+foreach ($key in $requiredKeys) {
+    $val = Get-TopLevelValue -Text $frontmatter -Key $key
+    if (-not $val -and $metaBlock) {
+        $val = Get-NestedValue -Text $metaBlock -Key $key
+    }
+    if (-not $val) {
+        throw "SKILL.md frontmatter is missing required WorkBuddy field '$key'."
+    }
+    $resolvedMetadata[$key] = $val
+}
+
+$examplesZh = Get-YamlList -Text $frontmatter -Key 'examples_zh'
+$examplesEn = Get-YamlList -Text $frontmatter -Key 'examples_en'
+
+# 2. Build normalized frontmatter for WorkBuddy
 $generated = [System.Collections.Generic.List[string]]::new()
 $generated.Add('---')
 $generated.Add("name: $name")
+$generated.Add("display_name: $(Format-YamlScalar $resolvedMetadata['display_name'])")
+$generated.Add("display_name_en: $(Format-YamlScalar $resolvedMetadata['display_name_en'])")
 $generated.Add("description: $(Format-YamlScalar $description)")
+$generated.Add("description_zh: $(Format-YamlScalar $resolvedMetadata['description_zh'])")
+$generated.Add("description_en: $(Format-YamlScalar $resolvedMetadata['description_en'])")
 
-foreach ($key in $required) {
-    $value = Get-NestedValue -Text $metadata -Key $key
-    if (-not $value) { throw "metadata.workbuddy.$key is required for a WorkBuddy package." }
-    $generated.Add("${key}: $(Format-YamlScalar $value)")
+if ($examplesZh.Count -gt 0) {
+    $generated.Add('examples_zh:')
+    foreach ($ex in $examplesZh) {
+        $generated.Add("  - $(Format-YamlScalar $ex)")
+    }
+}
+if ($examplesEn.Count -gt 0) {
+    $generated.Add('examples_en:')
+    foreach ($ex in $examplesEn) {
+        $generated.Add("  - $(Format-YamlScalar $ex)")
+    }
 }
 
+$generated.Add("category: $(Format-YamlScalar $resolvedMetadata['category'])")
+$generated.Add("version: $(Format-YamlScalar $resolvedMetadata['version'])")
+$generated.Add("author: $(Format-YamlScalar $resolvedMetadata['author'])")
 $generated.Add('---')
 $generated.Add('')
 $builtSkill = ($generated -join "`n") + "`n" + $body
 
+# 3. Stage the files
 $stageRoot = Join-Path $OutputDirectory 'stage'
 $stageSkill = Join-Path $stageRoot $skillName
 if (Test-Path -LiteralPath $stageRoot) {
@@ -111,11 +172,14 @@ foreach ($folder in @('references', 'scripts', 'templates')) {
     }
 }
 
-$version = Get-NestedValue -Text $metadata -Key 'version'
+# 4. Create ZIP archive with SKILL.md directly at root (WorkBuddy specification)
+$version = $resolvedMetadata['version']
 New-Item -Path $OutputDirectory -ItemType Directory -Force | Out-Null
 $zipPath = Join-Path $OutputDirectory "$skillName-$version.zip"
 if (Test-Path -LiteralPath $zipPath) { Remove-Item -LiteralPath $zipPath -Force }
-Compress-Archive -LiteralPath $stageSkill -DestinationPath $zipPath -CompressionLevel Optimal
+
+$itemsToZip = @(Get-ChildItem -LiteralPath $stageSkill).FullName
+Compress-Archive -Path $itemsToZip -DestinationPath $zipPath -CompressionLevel Optimal
 
 $hash = (Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash
 $hashFile = "$zipPath.sha256"
@@ -126,7 +190,7 @@ $entries = (Get-ChildItem -LiteralPath $stageSkill -File -Recurse).Count
     Zip = $zipPath
     Sha256 = $hash
     Sha256File = $hashFile
-    RootFolder = $skillName
+    RootFolder = '/'
     FileCount = $entries
     Version = $version
 } | ConvertTo-Json
