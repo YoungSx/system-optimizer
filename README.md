@@ -1,6 +1,15 @@
+<div align="center">
+
+<img src="assets/icon.png" alt="系统优化助手 / Computer Optimizer" width="128" />
+
 # 系统优化助手 (Computer Optimizer)
 
+**专为 Windows 10 与 Windows 11 设计的安全磁盘空间回收 Agent Skill**  
+*Safe, transparent disk space recovery Agent Skill for Windows 10 & 11*
+
 [English](#english-summary) | [中文说明](#中文说明)
+
+</div>
 
 ---
 
@@ -33,7 +42,7 @@
    - `examples_zh` / `examples_en`: 市场与快捷提问指令中英文列表
    - `category` / `version` / `author`: 分类标签、语义化版本与作者名称
 2. **正文与指令双语化**：`SKILL.md` 与参考文档 `references/cleanup-policy.md` 均采用中英文双语对照与步骤化 SOP。
-3. **ZIP 发布结构规范**：`tools/package-workbuddy.ps1` 严格按照 WorkBuddy 开放平台要求，将 `SKILL.md`、`references/`、`scripts/` 直接置于 ZIP 根目录，彻底避免外层嵌套目录导致的市场解析失败（450019 错误）。
+3. **ZIP 发布结构规范**：`tools/package-workbuddy.ps1` 严格按照 WorkBuddy 开放平台要求，将 `SKILL.md`、`references/`、`scripts/`、`assets/` 直接置于 ZIP 根目录，彻底避免外层嵌套目录导致的市场解析失败（450019 错误）。
 
 ---
 
@@ -56,6 +65,7 @@
 ## 目录结构 / Layout
 
 ```
+assets/icon.png                Project icon and WorkBuddy skill marketplace avatar
 SKILL.md                       Agent instructions (WorkBuddy & Agent Skill compliant frontmatter + bilingual SOP)
 CHANGELOG.md                   Version history and release notes
 docs/release-process.md        Standard release process, SemVer policy, and SOP

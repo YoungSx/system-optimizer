@@ -16,7 +16,7 @@
 1. **单一事实来源 (Single Source of Truth)**：`SKILL.md` 顶层 YAML frontmatter 中的 `version` 字段为版本唯一来源，打包脚本与 CI/CD 自动化流水线均直接从此提取。
 2. **安全先于发布**：发版前必须通过 `tests/smoke.ps1` 冒烟测试（Windows 环境下验证篡改拦截、权限拒绝、路径防穿越等安全机制）。
 3. **标签与版本对齐**：Git Tag（如 `v0.2.1`）必须与 `SKILL.md` 中声明的 `version` 完全一致，GitHub Actions 会对此进行硬性校验。
-4. **WorkBuddy 规范对齐**：技能包遵循腾讯 WorkBuddy 官方标准，ZIP 根目录下直接存放 `SKILL.md`、`references/` 和 `scripts/`，提供完整的中英文双语与标准元数据。
+4. **WorkBuddy 规范对齐**：技能包遵循腾讯 WorkBuddy 官方标准，ZIP 根目录下直接存放 `SKILL.md`、`references/`、`scripts/` 和 `assets/`，提供完整的中英文双语与标准元数据。
 
 ---
 
@@ -28,6 +28,7 @@
 | --- | --- | --- |
 | **版本管理与发版助手** | `tools/release.ps1` | 本地一键更新版本、校验测试、更新变更日志、打包并打 Tag |
 | **WorkBuddy 打包脚本** | `tools/package-workbuddy.ps1` | 校验元数据规范、构建符合 WorkBuddy 根目录要求的 `computer-optimizer-<version>.zip` 及 SHA-256 校验和 |
+| **项目图标与静态资源** | `assets/icon.png` | 512x512 PNG 高清项目图标与 WorkBuddy 开放平台市场展示头像 |
 | **CI 持续集成** | `.github/workflows/ci.yml` | 每次 PR/Push 到主分支时在 Windows 运行冒烟测试与打包校验 |
 | **Release 自动发布** | `.github/workflows/release.yml` | 推送 `v*` Tag 或手动触发时自动测试、打包并发布 GitHub Release 产物 |
 | **变更记录** | `CHANGELOG.md` | 记录每个版本的特性、修复与变更内容 |
@@ -59,39 +60,47 @@ pwsh -File tools/release.ps1 -Version 0.3.0 -DryRun
 # 本地执行测试、更新版本号、打 Git Tag
 pwsh -File tools/release.ps1 -Bump patch -Commit -Tag
 ```
+> **提示**：若在非 Windows 开发机（如 Linux/macOS）上准备发版，脚本会自动提示跳过 Windows 专有的系统测试，完整的安全测试将由 GitHub Actions CI 保证。也可以显式传入 `-SkipTests`。
 
-#### 3. 推送至远程仓库
+#### 3. 推送至远端仓库
+将提交和 Tag 推送到远端分支，触发 GitHub 自动化流水线：
 ```bash
 git push origin master
 git push origin --tags
 ```
+*(如果需要一步到位推送到远端，也可以在 `release.ps1` 中附加 `-Push` 参数)*。
 
 ---
 
-### 方式 B：手动发版流程
+### 方式 B：全手动发版流程
 
-若需手动精细化控制各发版环节，请遵循以下步骤：
+如果你希望全手动控制每个发版细节，请按以下步骤操作：
 
-#### 步骤 1：更新 `CHANGELOG.md`
-在 `CHANGELOG.md` 中将 `[Unreleased]` 下的条目归档至新版本标题下，格式如下：
-```markdown
-## [0.2.1] - 2026-10-30
-
-### Added
-- 新增特性说明...
-
-### Changed
-- 变更说明...
-
-### Fixed
-- 修复说明...
+#### 步骤 1：检查工作区状态
+```bash
+git checkout master
+git pull origin master
+git status
 ```
 
-#### 步骤 2：更新 `SKILL.md` 元数据
-修改 `SKILL.md` 中的 `version` 字段：
-```yaml
-version: 0.2.1
-```
+#### 步骤 2：更新版本号与变更日志
+1. 打开 `SKILL.md`，修改顶层 `version` 字段，例如：
+   ```yaml
+   version: 0.2.2
+   ```
+2. 打开 `CHANGELOG.md`，将 `## [Unreleased]` 下的内容归档至新版本小节：
+   ```markdown
+   ## [0.2.2] - 2026-10-30
+
+   ### Added
+   - 新增特性说明...
+
+   ### Changed
+   - 变更说明...
+
+   ### Fixed
+   - 修复说明...
+   ```
 
 #### 步骤 3：本地验证与打包
 运行冒烟测试与打包验证：
@@ -99,24 +108,28 @@ version: 0.2.1
 pwsh -File tests/smoke.ps1
 pwsh -File tools/package-workbuddy.ps1
 ```
-检查生成的 `build/computer-optimizer-0.2.1.zip` 及其 `.sha256` 校验文件，确保解压后 `SKILL.md` 直接位于根目录下。
+检查生成的 `build/computer-optimizer-<version>.zip` 及其 `.sha256` 校验文件，确保解压后 `SKILL.md` 直接位于根目录下。
 
 #### 步骤 4：提交与打标签
 ```bash
 git add SKILL.md CHANGELOG.md
-git commit -m "Release v0.2.1"
-git tag -a v0.2.1 -m "Computer Optimizer v0.2.1"
+git commit -m "chore(release): bump version to 0.2.2"
+git tag -a v0.2.2 -m "Release v0.2.2"
+```
+
+#### 步骤 5：推送远端
+```bash
 git push origin master
-git push origin v0.2.1
+git push origin v0.2.2
 ```
 
 ---
 
-## 四、自动化发布与交付 (GitHub Actions)
+## 四、自动化发布工作流机制
 
-推送标签 `v*` 后，GitHub Actions 中的 `.github/workflows/release.yml` 流水线将自动执行以下任务：
+推送以 `v` 开头的 Tag（例如 `v0.2.1`）时，`.github/workflows/release.yml` 会自动执行以下任务：
 
-1. **版本一致性防呆校验**：提取标签版本与 `SKILL.md` 中的版本对比，防止手误打错 Tag。
+1. **版本号强校验**：验证 Tag 中的版本号是否与 `SKILL.md` 的 `version` 严格匹配。
 2. **Windows 环境安全冒烟测试**：在 `windows-latest` 纯净环境执行 `tests/smoke.ps1`，确保安全契约无破坏。
 3. **打包 WorkBuddy 交付物**：执行 `tools/package-workbuddy.ps1` 生成标准 Zip 和 SHA-256 摘要。
 4. **提取变更日志**：从 `CHANGELOG.md` 自动提取当前版本的改动说明作为 Release 描述。
@@ -139,6 +152,8 @@ GitHub Release 生成后，即可交付至 WorkBuddy 市场或用户端：
    对比 `.sha256` 文件内容确认无损。
 3. **上传至 WorkBuddy 开放平台**：
    在 WorkBuddy 开放平台进入技能管理后台，选择“上传技能包”，直接上传 `computer-optimizer-<version>.zip`。由于该包严格满足 `SKILL.md` 直接位于 ZIP 根目录且包含标准中英文双语 Frontmatter，平台将自动解析技能并进入快速发布/测试流程。
+4. **配置技能图标**：
+   在平台技能管理界面中，技能图标推荐使用项目根目录下提供的 `assets/icon.png`（512x512 高清 PNG 图标）。该图标也随包完整打包于发布包的 `assets/` 目录中。
 
 ---
 
@@ -155,10 +170,9 @@ GitHub Release 生成后，即可交付至 WorkBuddy 市场或用户端：
    ```powershell
    pwsh -File tools/release.ps1 -Bump patch -Commit -Tag
    ```
-4. 合并 hotfix 分支回 `master` 并推送：
+4. 合并回 `master` 分支并推送到远端：
    ```bash
    git checkout master
    git merge hotfix/0.2.2
-   git push origin master
-   git push origin v0.2.2
+   git push origin master --tags
    ```

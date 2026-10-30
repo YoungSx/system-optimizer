@@ -9,7 +9,7 @@ param(
 # 1. SKILL.md must be located directly at the root of the ZIP archive.
 # 2. Frontmatter must contain: name, display_name, display_name_en, description,
 #    description_zh, description_en, examples_zh, examples_en, category, version, author.
-# 3. Sub-resources: references/, scripts/, templates/ located directly under archive root.
+# 3. Sub-resources: references/, scripts/, templates/, assets/ located directly under archive root.
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -158,7 +158,7 @@ New-Item -Path $stageSkill -ItemType Directory -Force | Out-Null
 $encoding = [Text.UTF8Encoding]::new($false)
 [IO.File]::WriteAllText((Join-Path $stageSkill 'SKILL.md'), $builtSkill, $encoding)
 
-foreach ($folder in @('references', 'scripts', 'templates')) {
+foreach ($folder in @('references', 'scripts', 'templates', 'assets')) {
     $source = Join-Path $skillRoot $folder
     if (-not (Test-Path -LiteralPath $source -PathType Container)) { continue }
     $destination = Join-Path $stageSkill $folder
