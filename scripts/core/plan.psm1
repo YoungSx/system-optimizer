@@ -125,7 +125,8 @@ function New-SystemCleanupPlan {
 
         $ready = Test-ClassReady -Entry $entry -Id $id
         if (-not $ready.Ready) {
-            $blocked.Add([pscustomobject]@{ ClassId = $id; Title = $definition.Title; TitleEn = $definition.TitleEn; Reason = $ready.Reason })
+            $titleEn = if ($definition.PSObject.Properties['TitleEn']) { [string]$definition.TitleEn } else { $null }
+            $blocked.Add([pscustomobject]@{ ClassId = $id; Title = $definition.Title; TitleEn = $titleEn; Reason = $ready.Reason })
             continue
         }
 
@@ -134,30 +135,33 @@ function New-SystemCleanupPlan {
             $collected = Invoke-ClassCollector -Entry $entry -CutoffUtc $cutoffUtc
         }
         catch {
-            $notApplicable.Add([pscustomobject]@{ ClassId = $id; Title = $definition.Title; TitleEn = $definition.TitleEn; Reason = $_.Exception.Message })
+            $titleEn = if ($definition.PSObject.Properties['TitleEn']) { [string]$definition.TitleEn } else { $null }
+            $notApplicable.Add([pscustomobject]@{ ClassId = $id; Title = $definition.Title; TitleEn = $titleEn; Reason = $_.Exception.Message })
             continue
         }
 
+        $titleEn = if ($definition.PSObject.Properties['TitleEn']) { [string]$definition.TitleEn } else { $null }
         if ($null -eq $collected) {
-            $notApplicable.Add([pscustomobject]@{ ClassId = $id; Title = $definition.Title; TitleEn = $definition.TitleEn; Reason = '这台电脑上不存在该类别的缓存目录，已跳过。' })
+            $notApplicable.Add([pscustomobject]@{ ClassId = $id; Title = $definition.Title; TitleEn = $titleEn; Reason = '这台电脑上不存在该类别的缓存目录，已跳过。' })
             continue
         }
 
         $bytes = [long]0
         foreach ($candidate in $collected.Candidates) { $bytes += [long]$candidate.Length }
         if ($collected.Candidates.Count -eq 0) {
-            $notApplicable.Add([pscustomobject]@{ ClassId = $id; Title = $definition.Title; TitleEn = $definition.TitleEn; Reason = "没有超过 $($definition.MinAgeDays) 天未修改的文件，已跳过。" })
+            $notApplicable.Add([pscustomobject]@{ ClassId = $id; Title = $definition.Title; TitleEn = $titleEn; Reason = "没有超过 $($definition.MinAgeDays) 天未修改的文件，已跳过。" })
             continue
         }
 
+        $impactEn = if ($definition.PSObject.Properties['ImpactEn']) { [string]$definition.ImpactEn } else { $null }
         $sections.Add([pscustomobject]@{
             ClassId = $id
             Title = $definition.Title
-            TitleEn = $definition.TitleEn
+            TitleEn = $titleEn
             Risk = $definition.Risk
             MinAgeDays = [int]$definition.MinAgeDays
             Impact = $definition.Impact
-            ImpactEn = $definition.ImpactEn
+            ImpactEn = $impactEn
             RequiresExplicitOptIn = [bool]$definition.RequiresExplicitOptIn
             Roots = @($collected.Roots)
             CandidateCount = $collected.Candidates.Count
@@ -196,14 +200,16 @@ function New-SystemCleanupPlan {
         EstimatedSize = (Format-ByteCount $totalBytes)
         FreeBytesBefore = $freeBefore
         Sections = @($sections | ForEach-Object {
+            $secTitleEn = if ($_.PSObject.Properties['TitleEn']) { [string]$_.TitleEn } else { $null }
+            $secImpactEn = if ($_.PSObject.Properties['ImpactEn']) { [string]$_.ImpactEn } else { $null }
             [ordered]@{
                 ClassId = $_.ClassId
                 Title = $_.Title
-                TitleEn = $_.TitleEn
+                TitleEn = $secTitleEn
                 Risk = $_.Risk
                 MinAgeDays = $_.MinAgeDays
                 Impact = $_.Impact
-                ImpactEn = $_.ImpactEn
+                ImpactEn = $secImpactEn
                 RequiresExplicitOptIn = $_.RequiresExplicitOptIn
                 Roots = $_.Roots
                 CandidateCount = $_.CandidateCount
@@ -282,14 +288,17 @@ function Get-SystemCleanupPlanDetails {
         $items = @($candidates | Sort-Object { [long]$_.Length } -Descending)
         $shown = if ($Full) { $items } else { @($items | Select-Object -First 3) }
 
+        $titleEn = if ($section.PSObject.Properties['TitleEn']) { [string]$section.TitleEn } else { $null }
+        $impactEn = if ($section.PSObject.Properties['ImpactEn']) { [string]$section.ImpactEn } else { $null }
+
         [ordered]@{
             ClassId = [string]$section.ClassId
             Title = [string]$section.Title
-            TitleEn = [string]$section.TitleEn
+            TitleEn = $titleEn
             Risk = [string]$section.Risk
             MinAgeDays = [int]$section.MinAgeDays
             Impact = [string]$section.Impact
-            ImpactEn = [string]$section.ImpactEn
+            ImpactEn = $impactEn
             CandidateCount = [int]$section.CandidateCount
             EstimatedBytes = [long]$section.EstimatedBytes
             EstimatedSize = Format-ByteCount ([long]$section.EstimatedBytes)
