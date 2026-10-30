@@ -1,26 +1,65 @@
-# System Optimizer
+# 系统优化助手 (System Optimizer)
 
-A Windows cleanup Agent Skill. It scans per-user cache categories that programs rebuild on demand, shows them as one reviewable plan, and moves only an explicitly approved plan to the Recycle Bin.
+[English](#english-summary) | [中文说明](#中文说明)
 
-| Category | Roots (under the current user's profile) | Age floor | Opt-in |
-| --- | --- | --- | --- |
-| `temp` | `Temp` | 30 days | No |
-| `crashdumps` | `CrashDumps` | 7 days | No |
-| `thumbnails` | `Microsoft\Windows\Explorer` (thumb/icon cache files) | 7 days | No |
-| `wer` | `Microsoft\Windows\WER\ReportQueue`, `ReportArchive` | 7 days | No |
-| `dxshadercache` | `NVIDIA\DXCache`, `GLCache`, `AMD\DxCache`, `GLCache`, `Intel\ShaderCache` | none | **Yes** |
+---
 
-It does not clean browser data, Downloads, the Recycle Bin, Windows components, the registry, or other users' profiles. It never runs as administrator.
+## 中文说明
 
-Adding a category means adding one file under `scripts/classes/` that exports `Get-CleanupClass`; the plan, approval, and execution path stays untouched. The catalog validates every module's contract at load time and rejects duplicates.
+**系统优化助手 (System Optimizer)** 是一款专为 Windows 10 与 Windows 11 设计的安全磁盘空间回收 Agent Skill，全面对齐**腾讯 WorkBuddy 开放平台技能规范**与通用 Agent 技能规范。它只扫描属于当前用户的、可由软件自动安全重建的缓存类别，将扫描结果整理为直观的可审查计划，并仅在获得用户明确审批后将计划内的文件移入回收站。
 
-## Layout
+### 核心特性与支持类别
+
+| 类别 (Category) | 扫描根路径 (当前用户 Profile 下) | 保留阈值 (Age Floor) | 显式授权 (Opt-in) | 说明 |
+| --- | --- | --- | --- | --- |
+| `temp` | `%LOCALAPPDATA%\Temp` | 30 天 | 否 | 应用程序写入的临时文件，仅扫描30天前未被变动的文件 |
+| `crashdumps` | `%LOCALAPPDATA%\CrashDumps` | 7 天 | 否 | 应用程序历史崩溃转储文件，保留7天供排查近期问题 |
+| `thumbnails` | `Microsoft\Windows\Explorer` | 7 天 | 否 | 资源管理器缩略图与图标缓存文件 |
+| `wer` | `Microsoft\Windows\WER` (队列与归档) | 7 天 | 否 | Windows 错误报告队列与归档 |
+| `dxshadercache` | NVIDIA / AMD / Intel 着色器缓存 | 无 | **必须** | 显卡编译的着色器缓存；重建需重新编译，须单独显式授权并在图形进程空闲时运行 |
+
+- **绝对安全红线**：严禁触碰下载文件夹、桌面、文档、照片、浏览器个人数据（Cookie/密码/历史记录）、网盘同步文件夹、回收站本身、`Windows.old`、系统还原点、WinSxS、注册表、系统服务或任何其他用户目录。
+- **权限安全机制**：绝不要求以管理员身份运行（非管理员标准上下文运行）。
+- **模块化可扩展**：新增类别仅需在 `scripts/classes/` 下增加一个导出 `Get-CleanupClass` 的模块文件，无需改动计划生成、安全审批与执行流。
+
+### WorkBuddy 规范对齐
+
+1. **元数据规范**：`SKILL.md` 顶层包含 WorkBuddy 官方标准 Frontmatter：
+   - `name`: 连字符小写英文字母唯一标识 (`system-optimizer`)
+   - `display_name`: 界面中文展示名（“系统优化助手”）
+   - `display_name_en`: 英文展示名称（“System Optimizer”）
+   - `description`: 意图识别与场景触发描述（含触发时机与触发词）
+   - `description_zh` / `description_en`: 中英文双语功能简介
+   - `examples_zh` / `examples_en`: 市场与快捷提问指令中英文列表
+   - `category` / `version` / `author`: 分类标签、语义化版本与作者名称
+2. **正文与指令双语化**：`SKILL.md` 与参考文档 `references/cleanup-policy.md` 均采用中英文双语对照与步骤化 SOP。
+3. **ZIP 发布结构规范**：`tools/package-workbuddy.ps1` 严格按照 WorkBuddy 开放平台要求，将 `SKILL.md`、`references/`、`scripts/` 直接置于 ZIP 根目录，彻底避免外层嵌套目录导致的市场解析失败（450019 错误）。
+
+---
+
+## English Summary
+
+**System Optimizer** is a safe, transparent disk space recovery Agent Skill designed for Windows 10 and 11, conforming strictly to both **Tencent WorkBuddy specifications** and generic Agent Skill standards. It scans per-user cache categories that programs rebuild on demand, presents them as a single reviewable plan, and moves only explicitly approved files to the Recycle Bin.
+
+### Category Overview
+
+| Category | Roots (under current user profile) | Age Floor | Opt-in | Notes |
+| --- | --- | --- | --- | --- |
+| `temp` | `Temp` | 30 days | No | Temporary files under user LocalAppData |
+| `crashdumps` | `CrashDumps` | 7 days | No | Application crash dumps |
+| `thumbnails` | `Microsoft\Windows\Explorer` | 7 days | No | Explorer thumbnail and icon cache files |
+| `wer` | `Microsoft\Windows\WER\ReportQueue`, `ReportArchive` | 7 days | No | Windows Error Reporting queue and archive |
+| `dxshadercache` | NVIDIA / AMD / Intel Shader Caches | None | **Yes** | GPU shader caches; requires explicit opt-in and idle graphics processes |
+
+---
+
+## 目录结构 / Layout
 
 ```
-SKILL.md                       Agent instructions (portable frontmatter + metadata.workbuddy block)
+SKILL.md                       Agent instructions (WorkBuddy & Agent Skill compliant frontmatter + bilingual SOP)
 CHANGELOG.md                   Version history and release notes
 docs/release-process.md        Standard release process, SemVer policy, and SOP
-references/cleanup-policy.md   Risk levels, user-facing wording, V1 exclusions, research basis
+references/cleanup-policy.md   Risk levels, user-facing wording, strict exclusions, research basis
 scripts/check.ps1              Report OS/account support and the live catalog; no scan
 scripts/scan.ps1               Build a plan; prints the plan summary as JSON
 scripts/show-plan.ps1          Show plan details (-Full for every path)
@@ -32,7 +71,7 @@ scripts/core/environment.psm1  OS, account, profile and cache-root resolution
 scripts/core/catalog.psm1      Class registry, contract validation, class readiness
 scripts/core/plan.psm1         Sealed plan manifests, checksums, summary rendering
 scripts/core/executor.psm1     Revalidating execution into the Recycle Bin
-scripts/classes/*.psm1         One file per cleanup category
+scripts/classes/*.psm1         One file per cleanup category (bilingual titles & impacts)
 tests/smoke.ps1                Behaviour tests for the safety contract
 tools/package-workbuddy.ps1    Build the WorkBuddy marketplace zip and SHA-256 hash
 tools/release.ps1              Release assistant: version bump, validation, tag & release
@@ -40,36 +79,50 @@ tools/release.ps1              Release assistant: version bump, validation, tag 
 .github/workflows/release.yml  Release pipeline: automated build and GitHub Release upon tag push
 ```
 
-## Run
+## 运行与测试 / Usage
 
 ```powershell
-pwsh -File scripts/check.ps1                    # support status + catalog, no scan
+# 1. 环境与支持检查 (不修改任何文件)
+pwsh -File scripts/check.ps1
+
+# 2. 扫描常规低风险缓存并生成计划
 pwsh -File scripts/scan.ps1 -Class temp,crashdumps,thumbnails,wer
+
+# 3. 扫描包含显卡着色器缓存的计划 (需显式 OptIn)
 pwsh -File scripts/scan.ps1 -Class dxshadercache -OptIn dxshadercache
+
+# 4. 查看计划明细
 pwsh -File scripts/show-plan.ps1 -PlanId <id>
+
+# 5. 用户确认后执行清理 (仅移入回收站)
 pwsh -File scripts/clean.ps1 -PlanId <id> -ApprovedPlanId <id> -Confirm:$false
+
+# 6. 取消/废弃未执行的计划
 pwsh -File scripts/discard.ps1 -PlanId <id>
+
+# 7. 运行行为安全冒烟测试 (Windows)
 pwsh -File tests/smoke.ps1
 ```
 
-## Approval model
+## 审批模型与安全保障 / Approval & Safety Model
 
-A scan writes a SHA-256 sealed plan manifest under `%LOCALAPPDATA%\SystemOptimizer\plans`. Execution requires `-ApprovedPlanId` to equal the plan being run, revalidates every candidate (user SID, root inside the profile, path inside that root, no reparse point in any path segment, unchanged size and timestamps, still older than the cutoff), and skips anything that no longer matches. There is no fallback to permanent deletion.
+- **密封计划清单**：扫描操作在 `%LOCALAPPDATA%\SystemOptimizer\plans` 下生成受 SHA-256 保护的 JSON 计划清单。
+- **单次会话审批门禁**：执行时强制要求 `-ApprovedPlanId` 与被执行的计划完全匹配；任何会话层面的重新扫描或参数变动均需重新获得用户授权。
+- **执行时严格重验**：执行器在移动每个文件前重新核验：当前用户 SID、计划校验和、计划时效、目录在用户 Profile 内且位于声明根下、全路径无任何重解析点/符号链接、文件大小和时间戳未发生任何变动且仍符合时间保留阈值。任何一项不符合均直接跳过。
+- **绝不永久删除**：文件仅移入 Windows 回收站，绝不调用永久删除 API。
+- **实测可用空间对比**：在执行前与执行后精确测量驱动器空闲字节数，向用户反馈真实变化。
 
-Categories marked `RequiresExplicitOptIn` are refused at plan time unless the caller also passes `-OptIn <id>`, so a routine "clean junk" request cannot silently pull in a category whose cleanup the user would notice.
+## 打包与发布 / Packaging & Release
 
-Free space is measured before the scan and after execution; the reported delta is a real measurement but other processes writing to the same drive can dilute it.
-
-## Packaging & Release
-
-- **Release Documentation**: See [`docs/release-process.md`](file:///home/ubuntu/.t3/worktrees/system-optimizer/t3-744f0112/docs/release-process.md) for full release procedures, SemVer rules, and hotfix guidelines.
-- **Packaging for WorkBuddy**: `tools/package-workbuddy.ps1` flattens the `metadata.workbuddy` block into the top-level frontmatter WorkBuddy expects (`display_name`, `description_zh`, `description_en`, `category`, `version`, `author`) and writes `build/system-optimizer-<version>.zip` and `.sha256` with `system-optimizer/` as the archive root.
-- **Automated Release Script**:
+- **发版文档**：完整发版 SOP、SemVer 规范及热修复流程请参阅 [`docs/release-process.md`](docs/release-process.md)。
+- **WorkBuddy 打包工具**：
+  `tools/package-workbuddy.ps1` 会自动校验元数据，生成符合 WorkBuddy 开放平台规范的标准分发包 `build/system-optimizer-<version>.zip` 及其 `.sha256` 校验和文件，解压后 `SKILL.md` 直接位于根目录。
+- **自动化发版脚本**：
   ```powershell
-  # Preview patch bump
+  # 试运行补丁版本递增预览
   pwsh -File tools/release.ps1 -Bump patch -DryRun
 
-  # Bump minor version, update changelog, verify package, and create git tag
+  # 正式递增 minor 版本、更新 CHANGELOG 并创建 Git Tag
   pwsh -File tools/release.ps1 -Bump minor -Commit -Tag
   ```
-- **CI / CD**: Automatically verified on Windows via GitHub Actions (`.github/workflows/ci.yml`). Tag pushes (`v*`) automatically trigger `.github/workflows/release.yml` to build the zip package, verify sha256, and publish a GitHub Release with attached assets.
+- **CI / CD**：GitHub Actions (`.github/workflows/ci.yml`) 在每次提交和 PR 时自动运行安全冒烟测试与打包校验；推送版本标签 (`v*`) 时自动触发 (`.github/workflows/release.yml`) 构建分发包并发布 GitHub Release。
