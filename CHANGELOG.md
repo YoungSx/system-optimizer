@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-10-30
+
 ### Added
 - Aligned `SKILL.md` frontmatter with official WorkBuddy skill specifications:
   - Standardized top-level fields: `display_name` (系统优化助手), `display_name_en` (System Optimizer), `description_zh`, `description_en`, `examples_zh`, `examples_en`, `category`, `version`, `author`.
